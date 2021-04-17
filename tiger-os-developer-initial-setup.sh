@@ -123,11 +123,20 @@ TIGER_RELEASE=21
 available_packages=($(wget -q "https://api.github.com/repos/§slug/releases" -O - |\
                       grep '"tag_name":' | cut -d\" -f 4))
                       
+mkdir -p "/var/lib/tiger-uaas/"
+                      
 for package in ${available_packages[@]}; do
   info=$(wget -q "https://github.com/§slug/releases/download/${package}/control.desc" -O -)
   package_name=$(echo "${info}" | head -n1)
   online_version=$(echo "${info}" | head -n2 | tail -n1)
   installed_version=$(dpkg -l | grep ^ii | awk '{print $2,$3}' | grep ^"${package_name} " | cut -d' ' -f2)
+  
+  [ -f "/var/lib/tiger-uaas/${package_name}" ] && {
+    [ "$(cat /var/lib/tiger-uaas/${package_name})" = "${online_version}" ] && {
+      echo "O pacote '${package_name}' já está em sua versão mais recente"
+      continue
+    }
+  }
   
   target_release=$(echo "${info}" | head -n3 | tail -n1)
   
@@ -149,6 +158,7 @@ for package in ${available_packages[@]}; do
       echo "Extraindo..."
       dpkg -x contentes.ar .
       rm contentes.ar
+      echo -n "${online_version}" > "/var/lib/tiger-uaas/${package_name}"
       echo 
     }
   }
